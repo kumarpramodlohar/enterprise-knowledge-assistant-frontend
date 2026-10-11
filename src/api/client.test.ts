@@ -37,6 +37,7 @@ describe('api client', () => {
       citations: [],
       correlationId: 'c',
       timingMs: 1,
+      retrievalMs: 0,
     })
     const api = createApiClient({ baseUrl: '', fetchImpl })
     const res = await api.queryChat({ question: 'hi' })

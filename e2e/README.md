@@ -1,1 +1,1 @@
-End-to-end tests (Playwright) live here. See EKA-08, EKA-14, EKA-18 and EKA-19 in the implementation backlog.
+End-to-end tests (Playwright) live here. Run `npm run test:e2e`; Playwright starts the Vite server and the test stubs API responses, so it verifies browser workflows without requiring real documents or credentials. The production-like backend/provider flow is covered separately by backend integration tests and the evaluation runner. See EKA-08, EKA-14, EKA-18 and EKA-19 in the implementation backlog.

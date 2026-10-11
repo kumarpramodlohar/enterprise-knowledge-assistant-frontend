@@ -11,6 +11,7 @@ export interface Me {
   subject: string
   role: 'ADMIN' | 'MEMBER' | 'NONE'
   readableCollectionIds: string[]
+  manageableCollectionIds: string[]
 }
 
 export interface DocumentResponse {
@@ -85,4 +86,5 @@ export interface ChatQueryResponse {
   citations: Citation[]
   correlationId: string
   timingMs: number
+  retrievalMs: number
 }

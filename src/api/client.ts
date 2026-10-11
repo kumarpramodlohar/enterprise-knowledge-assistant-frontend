@@ -28,6 +28,8 @@ export interface ApiClientOptions {
   baseUrl?: string
   getAuthHeader?: TokenProvider
   fetchImpl?: typeof fetch
+  /** Called on every 401 so the app can drop its session. */
+  onUnauthorized?: () => void
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
@@ -41,7 +43,17 @@ export function createApiClient(options: ApiClientOptions = {}) {
     const headers = new Headers(init.headers)
     const auth = await options.getAuthHeader?.()
     if (auth) headers.set('Authorization', auth)
-    const res = await doFetch(`${baseUrl}${path}`, { ...init, headers })
+    let res: Response
+    try {
+      res = await doFetch(`${baseUrl}${path}`, { ...init, headers })
+    } catch {
+      throw new ApiRequestError(0, {
+        code: 'NETWORK_ERROR',
+        message: 'Network error',
+        correlationId: '',
+      })
+    }
+    if (res.status === 401) options.onUnauthorized?.()
     if (!res.ok) {
       const fallback: ApiError = {
         code: 'UNKNOWN',

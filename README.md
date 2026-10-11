@@ -14,7 +14,7 @@ The MVP is designed around trustworthy answers: source references must resolve t
 
 ## Current Status
 
-The frontend is an early application shell. It currently provides routes for the assistant and document library, but those feature pages are placeholders. The typed API client and authentication integration are also still under development. Use the docs for planned behavior and acceptance criteria, and do not treat them as implemented capabilities.
+The frontend includes the typed API/auth foundation, document upload and lifecycle screens, and the single-turn assistant with citations. See the canonical task list for verification status and known limitations.
 
 ## Run Locally
 
@@ -26,7 +26,11 @@ cp .env.example .env
 npm run dev
 ```
 
-Vite starts the frontend and prints its local URL. Set `VITE_API_BASE_URL` in `.env` to the Spring Boot API URL when connecting the UI to a backend; the example value is `http://localhost:8080`. Do not put secrets in frontend environment variables because values prefixed with `VITE_` are exposed to the browser.
+Vite starts the frontend and prints its local URL. Set `VITE_API_BASE_URL` in `.env` to the Spring Boot API URL; the example value is `http://localhost:8080`. Do not put secrets in frontend environment variables because values prefixed with `VITE_` are exposed to the browser.
+
+For local development, the sign-in form uses the backend's local HTTP Basic profile and keeps credentials in memory only. The Documents page exposes upload, re-index, and delete actions only for collections listed as manageable by `/api/v1/me`; server-side checks remain authoritative. Upload acceptance means queued, not indexed—use **Refresh status** to check progress. The Assistant page supports single-turn questions and authorized collection narrowing. Conversation history is not saved.
+
+For the required backend, PostgreSQL/pgvector, Ollama, SQL seed, and environment setup, follow the backend repository README.
 
 ## Useful Commands
 
