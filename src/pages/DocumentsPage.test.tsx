@@ -45,6 +45,9 @@ function renderPage(overrides: Partial<ApiClient> = {}, manageableCollectionIds 
     },
     signInWithAuthHeader: vi.fn(),
     signInWithBasic: vi.fn(),
+    oidcEnabled: false,
+    signInWithOidc: vi.fn(),
+    completeOidcSignIn: vi.fn(),
     signOut: vi.fn(),
   }
   return { ...render(<AuthContext.Provider value={value}><DocumentsPage /></AuthContext.Provider>), api }

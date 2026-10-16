@@ -96,6 +96,10 @@ export function AssistantPage() {
 
       {!me ? (
         <p className="mt-6">Sign in to ask questions about documents you can access.</p>
+      ) : me.readableCollectionIds.length === 0 && me.role !== 'ADMIN' ? (
+        <p role="status" className="mt-6 rounded-md bg-amber-50 p-4 text-amber-900">
+          You do not have access to any collections yet. Contact your administrator.
+        </p>
       ) : (
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex flex-col gap-6">

@@ -28,6 +28,8 @@ npm run dev
 
 Vite starts the frontend and prints its local URL. Set `VITE_API_BASE_URL` in `.env` to the Spring Boot API URL; the example value is `http://localhost:8080`. Do not put secrets in frontend environment variables because values prefixed with `VITE_` are exposed to the browser.
 
+**Single sign-on (Keycloak/OIDC):** set `VITE_OIDC_AUTHORITY` (for example `http://127.0.0.1:8180/realms/eka`) and `VITE_OIDC_CLIENT_ID` (`eka-frontend`) in `.env`. The client must be a public client with PKCE (S256) and redirect URI `<frontend origin>/*`. Tokens are kept in memory only, so a page reload requires signing in again. Leave `VITE_API_BASE_URL` empty in development to use the Vite `/api` proxy (target `http://localhost:8080`). The backend must run with OIDC enabled; see [specs/004-oidc-authentication](../enterprise-knowledge-assistant-spec/specs/004-oidc-authentication/spec.md).
+
 For local development, the sign-in form uses the backend's local HTTP Basic profile and keeps credentials in memory only. The Documents page exposes upload, re-index, and delete actions only for collections listed as manageable by `/api/v1/me`; server-side checks remain authoritative. Upload acceptance means queued, not indexed—use **Refresh status** to check progress. The Assistant page supports single-turn questions and authorized collection narrowing. Conversation history is not saved.
 
 For the required backend, PostgreSQL/pgvector, Ollama, SQL seed, and environment setup, follow the backend repository README.

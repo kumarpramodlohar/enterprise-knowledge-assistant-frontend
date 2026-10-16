@@ -15,6 +15,12 @@ export interface AuthContextValue {
   signInWithAuthHeader: (getHeader: () => string | null) => Promise<void>
   /** Local development profile only (the backend enables HTTP Basic only there). */
   signInWithBasic: (username: string, password: string) => Promise<void>
+  /** True when an OIDC provider is configured for this build. */
+  oidcEnabled: boolean
+  /** Redirects to the OIDC provider. */
+  signInWithOidc: () => Promise<void>
+  /** Finishes the OIDC redirect callback and loads the identity from the server. */
+  completeOidcSignIn: () => Promise<void>
   signOut: () => void
 }
 

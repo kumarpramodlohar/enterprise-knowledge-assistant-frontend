@@ -4,6 +4,10 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    // Same-origin API calls in development avoid CORS; leave VITE_API_BASE_URL empty to use this.
+    proxy: { '/api': 'http://localhost:8080' },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

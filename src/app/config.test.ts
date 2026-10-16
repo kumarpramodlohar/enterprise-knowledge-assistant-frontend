@@ -18,4 +18,18 @@ describe('parseConfig', () => {
       expect(() => parseConfig({ VITE_API_BASE_URL: value })).toThrow()
     },
   )
+
+  it('enables OIDC only when authority and client id are both set', () => {
+    expect(
+      parseConfig({
+        VITE_OIDC_AUTHORITY: 'http://127.0.0.1:8180/realms/eka/',
+        VITE_OIDC_CLIENT_ID: 'eka-frontend',
+      }).oidc,
+    ).toEqual({ authority: 'http://127.0.0.1:8180/realms/eka', clientId: 'eka-frontend' })
+    expect(parseConfig({}).oidc).toBeUndefined()
+    expect(() => parseConfig({ VITE_OIDC_CLIENT_ID: 'eka-frontend' })).toThrow()
+    expect(() =>
+      parseConfig({ VITE_OIDC_AUTHORITY: 'ftp://x', VITE_OIDC_CLIENT_ID: 'c' }),
+    ).toThrow()
+  })
 })

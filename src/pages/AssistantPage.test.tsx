@@ -34,6 +34,9 @@ function renderPage(queryResult: ChatQueryResponse = {
     },
     signInWithAuthHeader: vi.fn(),
     signInWithBasic: vi.fn(),
+    oidcEnabled: false,
+    signInWithOidc: vi.fn(),
+    completeOidcSignIn: vi.fn(),
     signOut: vi.fn(),
   }
   return { api, ...render(<AuthContext.Provider value={value}><AssistantPage /></AuthContext.Provider>) }
