@@ -58,7 +58,7 @@ test('signs in, uploads a document, and shows an insufficient-evidence answer', 
   await page.goto('/')
   await page.getByLabel('Username').fill('manager')
   await page.getByLabel('Password').fill('local-only')
-  await page.getByRole('button', { name: 'Sign in (local)' }).click()
+  await page.getByRole('button', { name: 'Sign in locally' }).click()
   await expect(page.getByText('Signed in as manager')).toBeVisible()
 
   await page.getByRole('link', { name: 'Documents' }).click()
@@ -73,7 +73,7 @@ test('signs in, uploads a document, and shows an insufficient-evidence answer', 
   await expect(page.getByRole('status')).toContainText('Upload accepted (QUEUED)')
   await expect(page.getByText('Status: QUEUED')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Assistant' }).click()
+  await page.getByRole('link', { name: 'Ask' }).click()
   await page.getByLabel('Question').fill('What does the guide say?')
   await page.getByRole('button', { name: 'Ask' }).click()
   await expect(page.getByRole('heading', { name: 'Insufficient evidence' })).toBeVisible()

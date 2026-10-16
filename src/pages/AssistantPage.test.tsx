@@ -48,7 +48,8 @@ it('submits a question and renders answer and citations as inert text', async ()
     filters: undefined,
   }))
   expect(await screen.findByText('A safe answer')).toBeInTheDocument()
-  expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeInTheDocument()
+  expect(screen.getByText('[1] <img src=x onerror=alert(1)>')).toBeInTheDocument()
+  expect(document.querySelector('img')).toBeNull()
   expect(screen.queryByText('<script>alert(1)</script> excerpt')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Verify and view source' }))
   expect(await screen.findByText('<script>alert(1)</script> excerpt')).toBeInTheDocument()
@@ -73,7 +74,7 @@ it('shows insufficient evidence distinctly', async () => {
 it('submits selected collection and metadata filters', async () => {
   const { api } = renderPage()
   fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'What is the policy?' } })
-  fireEvent.change(screen.getByLabelText('Collection (optional)'), { target: { value: 'collection-1' } })
+  fireEvent.change(screen.getByLabelText('Search in'), { target: { value: 'collection-1' } })
   fireEvent.change(screen.getByLabelText('Version (optional)'), { target: { value: '2026' } })
   fireEvent.change(screen.getByLabelText('Document type (optional)'), { target: { value: 'policy' } })
   fireEvent.change(screen.getByLabelText('Tags (comma-separated, optional)'), { target: { value: 'hr, approved' } })

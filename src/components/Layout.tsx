@@ -1,60 +1,53 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { useState, type FormEvent } from 'react'
-import { toUiError } from '../api/errors'
+import { Navigate, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { ErrorState } from './StateViews'
+
+const ROLE_LABEL = { ADMIN: 'Administrator', MEMBER: 'Member', NONE: 'No role assigned' } as const
+
+const baseNav =
+  'rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600'
+
+function navClass({ isActive }: { isActive: boolean }): string {
+  return isActive
+    ? baseNav + ' bg-indigo-50 text-indigo-700'
+    : baseNav + ' text-slate-700 hover:bg-slate-100'
+}
 
 export function Layout() {
-  const { state, signInWithBasic, signOut } = useAuth()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<ReturnType<typeof toUiError> | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const { state, signOut } = useAuth()
 
-  async function signIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    try {
-      await signInWithBasic(username, password)
-      setPassword('')
-    } catch (cause) {
-      setError(toUiError(cause))
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  if (state.status !== 'authenticated') return <Navigate to="/login" replace />
 
   return (
-    <>
-      <header>
-        <nav aria-label="Primary">
-          <NavLink to="/assistant">Assistant</NavLink>
-          <NavLink to="/documents">Documents</NavLink>
+    <div className="flex min-h-screen flex-col bg-white md:flex-row">
+      <aside className="flex shrink-0 flex-col gap-6 border-b border-slate-200 bg-slate-50 p-4 md:w-60 md:border-b-0 md:border-r">
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
+            <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 2 10 5-10 5L2 7z" />
+              <path d="m2 12 10 5 10-5" />
+              <path d="m2 17 10 5 10-5" />
+            </svg>
+          </span>
+          <span className="text-lg font-bold text-slate-900">eka</span>
+        </div>
+        <nav aria-label="Primary" className="flex flex-col gap-1">
+          <NavLink to="/assistant" className={navClass}>Ask</NavLink>
+          <NavLink to="/documents" className={navClass}>Documents</NavLink>
         </nav>
-        {state.status === 'authenticated' ? (
-          <div>
-            <span>Signed in as {state.me.subject}</span>
-            <button type="button" onClick={signOut}>Sign out</button>
-          </div>
-        ) : (
-          <form onSubmit={signIn} aria-label="Sign in">
-            <label>
-              Username
-              <input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-            </label>
-            <label>
-              Password
-              <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            </label>
-            <button disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in (local)'}</button>
-            {error && <ErrorState error={error} />}
-          </form>
-        )}
-      </header>
-      <main>
+        <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+          <p className="text-xs text-slate-600">Role</p>
+          <p className="font-semibold text-slate-900">{ROLE_LABEL[state.me.role]}</p>
+        </div>
+        <div className="mt-auto flex flex-col gap-1 border-t border-slate-200 pt-4 text-sm">
+          <span className="font-semibold text-slate-900">Signed in as {state.me.subject}</span>
+          <button type="button" onClick={signOut} className="self-start text-slate-600 underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+            Sign out
+          </button>
+        </div>
+      </aside>
+      <main className="min-w-0 flex-1">
         <Outlet />
       </main>
-    </>
+    </div>
   )
 }
