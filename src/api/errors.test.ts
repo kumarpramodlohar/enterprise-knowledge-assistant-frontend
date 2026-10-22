@@ -17,6 +17,8 @@ describe('toUiError', () => {
     [404, 'NOT_FOUND', 'not_found'],
     [409, 'DUPLICATE_DOCUMENT', 'duplicate'],
     [413, 'FILE_TOO_LARGE', 'file_too_large'],
+    [413, 'PDF_PAGE_LIMIT_EXCEEDED', 'pdf_page_limit'],
+    [413, 'EXTRACTED_CONTENT_TOO_LARGE', 'extracted_content_too_large'],
     [415, 'UNSUPPORTED_TYPE', 'unsupported_type'],
     [422, 'UNPROCESSABLE_DOCUMENT', 'unprocessable'],
     [503, 'UNKNOWN', 'provider'],
@@ -30,6 +32,14 @@ describe('toUiError', () => {
     const ui = toUiError(err(500, 'INTERNAL_ERROR'))
     expect(ui.message).not.toContain('secret')
     expect(ui.correlationId).toBe('corr-1')
+  })
+
+  it('gives byte-size, page-count, and extracted-content limits distinct safe messages', () => {
+    const fileBytes = toUiError(err(413, 'FILE_TOO_LARGE'))
+    const pageCount = toUiError(err(413, 'PDF_PAGE_LIMIT_EXCEEDED'))
+    const extractedText = toUiError(err(413, 'EXTRACTED_CONTENT_TOO_LARGE'))
+
+    expect(new Set([fileBytes.message, pageCount.message, extractedText.message]).size).toBe(3)
   })
 
   it('treats unknown throwables as a generic service error', () => {

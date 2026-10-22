@@ -7,6 +7,8 @@ export type UiErrorKind =
   | 'not_found'
   | 'duplicate'
   | 'file_too_large'
+  | 'pdf_page_limit'
+  | 'extracted_content_too_large'
   | 'unsupported_type'
   | 'unprocessable'
   | 'provider'
@@ -28,6 +30,8 @@ const MESSAGES: Record<UiErrorKind, string> = {
   not_found: 'That item was not found or you do not have access to it.',
   duplicate: 'This document already exists in the collection.',
   file_too_large: 'The file is too large.',
+  pdf_page_limit: 'This PDF exceeds the maximum page count allowed for upload.',
+  extracted_content_too_large: 'The document contains more extractable text than EKA can process.',
   unsupported_type: 'Only PDF, DOCX, TXT and Markdown files are supported.',
   unprocessable: 'The file is corrupt or protected and cannot be read.',
   provider: 'The AI service is unavailable right now. Try again shortly.',
@@ -43,6 +47,8 @@ const BY_CODE: Record<string, UiErrorKind> = {
   NOT_FOUND: 'not_found',
   DUPLICATE_DOCUMENT: 'duplicate',
   FILE_TOO_LARGE: 'file_too_large',
+  PDF_PAGE_LIMIT_EXCEEDED: 'pdf_page_limit',
+  EXTRACTED_CONTENT_TOO_LARGE: 'extracted_content_too_large',
   UNSUPPORTED_TYPE: 'unsupported_type',
   UNPROCESSABLE_DOCUMENT: 'unprocessable',
   PROVIDER_UNAVAILABLE: 'provider',
