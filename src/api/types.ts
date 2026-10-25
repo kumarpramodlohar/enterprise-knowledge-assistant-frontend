@@ -69,15 +69,19 @@ export interface ChatFilters {
 export interface ChatQueryRequest {
   question: string
   filters?: ChatFilters
+  allowExternalSearch?: boolean
 }
 
 export interface Citation {
-  documentId: string
-  fileName: string
-  chunkId: string
+  documentId?: string | null
+  fileName?: string | null
+  chunkId?: string | null
   pageNumber?: number | null
   section?: string | null
   snippet: string
+  sourceType?: 'INTERNAL' | 'EXTERNAL'
+  title?: string | null
+  url?: string | null
 }
 
 export interface ChatQueryResponse {

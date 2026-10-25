@@ -17,6 +17,7 @@ const fieldClass =
   'w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600'
 
 function citationLabel(citation: Citation, index: number): string {
+  if (citation.sourceType === 'EXTERNAL') return '[' + (index + 1) + '] ' + (citation.title || 'Web source')
   const parts = [citation.fileName]
   if (citation.section) parts.push(citation.section)
   if (citation.pageNumber != null) parts.push('p.' + citation.pageNumber)
@@ -31,6 +32,7 @@ export function AssistantPage() {
   const [version, setVersion] = useState('')
   const [documentType, setDocumentType] = useState('')
   const [tags, setTags] = useState('')
+  const [allowExternalSearch, setAllowExternalSearch] = useState(false)
   const [result, setResult] = useState<ChatQueryResponse | null>(null)
   const [error, setError] = useState<UiError | null>(null)
   const [pending, setPending] = useState(false)
@@ -46,6 +48,7 @@ export function AssistantPage() {
     try {
       setResult(await api.queryChat({
         question,
+        allowExternalSearch,
         filters: collectionId || version || documentType || tags
           ? {
               ...(collectionId ? { collectionIds: [collectionId] } : {}),
@@ -75,6 +78,7 @@ export function AssistantPage() {
   }
 
   async function verifySource(citation: Citation) {
+    if (!citation.documentId) return
     setSource({ citation, state: 'checking', error: null })
     try {
       const document = await api.getDocument(citation.documentId)
@@ -92,7 +96,7 @@ export function AssistantPage() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-8">
       <h1 className="text-[28px] font-bold text-slate-900">Ask your knowledge</h1>
-      <p className="mt-2 text-slate-600">Answers grounded in your permitted technical documents.</p>
+      <p className="mt-2 text-slate-600">Answers grounded in documents you can access, with optional public web search.</p>
 
       {!me ? (
         <p className="mt-6">Sign in to ask questions about documents you can access.</p>
@@ -155,7 +159,7 @@ export function AssistantPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-slate-900">EKA</span>
                   <span className="text-xs text-slate-600">
-                    {result.insufficientEvidence ? 'No supporting evidence' : 'Grounded answer'}
+                    {result.insufficientEvidence ? 'No supporting evidence' : result.citations.some((item) => item.sourceType === 'EXTERNAL') ? 'Answer with web sources' : 'Grounded answer'}
                   </span>
                 </div>
                 {result.insufficientEvidence ? (
@@ -169,18 +173,32 @@ export function AssistantPage() {
                 {result.citations.length > 0 && (
                   <ol aria-label="Sources" className="mt-5 flex flex-col gap-3">
                     {result.citations.map((citation, index) => {
-                      const checking = source?.citation.chunkId === citation.chunkId && source.state === 'checking'
+                      const external = citation.sourceType === 'EXTERNAL'
+                      const checking = !external && source !== null
+                        && source.citation.chunkId === citation.chunkId && source.state === 'checking'
                       return (
-                        <li key={citation.chunkId} className="rounded-md border border-indigo-300 bg-indigo-50 p-3">
+                        <li key={external ? citation.url || index : citation.chunkId || index} className="rounded-md border border-indigo-300 bg-indigo-50 p-3">
                           <p className="text-sm text-indigo-700">{citationLabel(citation, index)}</p>
-                          <button
-                            type="button"
-                            disabled={checking}
-                            onClick={() => void verifySource(citation)}
-                            className="mt-1 text-xs font-semibold text-indigo-700 underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
-                          >
-                            {checking ? 'Checking access…' : 'Verify and view source'}
-                          </button>
+                          {external ? (
+                            <>
+                              <span className="mt-1 block text-[11px] font-medium uppercase text-slate-600">External web source</span>
+                              <p className="mt-1 text-xs text-slate-700">{citation.snippet}</p>
+                              {citation.url?.toLowerCase().startsWith('https://') && (
+                                <a href={citation.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-semibold text-indigo-700 underline">
+                                  Open web source
+                                </a>
+                              )}
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={checking}
+                              onClick={() => void verifySource(citation)}
+                              className="mt-1 text-xs font-semibold text-indigo-700 underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                            >
+                              {checking ? 'Checking access…' : 'Verify and view source'}
+                            </button>
+                          )}
                         </li>
                       )
                     })}
@@ -203,6 +221,15 @@ export function AssistantPage() {
                 onChange={(event) => setQuestion(event.target.value)}
                 onKeyDown={onKeyDown}
               />
+              <label className="mt-3 flex items-start gap-2 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={allowExternalSearch}
+                  onChange={(event) => setAllowExternalSearch(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>Search the public web if my documents cannot answer. My question may be sent to EKA’s configured web search provider.</span>
+              </label>
               <div className="mt-2 flex items-center justify-between gap-3">
                 <p className="text-[11px] text-slate-600">Enter to send · Shift + Enter for a new line</p>
                 <button

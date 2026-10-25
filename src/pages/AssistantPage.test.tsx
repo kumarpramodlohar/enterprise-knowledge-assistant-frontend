@@ -48,6 +48,7 @@ it('submits a question and renders answer and citations as inert text', async ()
   fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
   await waitFor(() => expect(api.queryChat).toHaveBeenCalledWith({
     question: 'What is the policy?',
+    allowExternalSearch: false,
     filters: undefined,
   }))
   expect(await screen.findByText('A safe answer')).toBeInTheDocument()
@@ -84,6 +85,7 @@ it('submits selected collection and metadata filters', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
   await waitFor(() => expect(api.queryChat).toHaveBeenCalledWith({
     question: 'What is the policy?',
+    allowExternalSearch: false,
     filters: {
       collectionIds: ['collection-1'],
       version: '2026',
@@ -91,6 +93,35 @@ it('submits selected collection and metadata filters', async () => {
       tags: ['hr', 'approved'],
     },
   }))
+})
+
+it('requires explicit opt-in and shows external sources as safe web links', async () => {
+  const { api } = renderPage({
+    answer: 'A public answer',
+    insufficientEvidence: false,
+    citations: [{
+      sourceType: 'EXTERNAL',
+      title: 'Public source',
+      url: 'https://example.org/article',
+      snippet: 'Public result excerpt',
+    }],
+    correlationId: 'req-web',
+    timingMs: 10,
+    retrievalMs: 2,
+  })
+  expect(screen.getByLabelText(/Search the public web/)).not.toBeChecked()
+  fireEvent.click(screen.getByLabelText(/Search the public web/))
+  fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'What is Java?' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+  await waitFor(() => expect(api.queryChat).toHaveBeenCalledWith({
+    question: 'What is Java?',
+    allowExternalSearch: true,
+    filters: undefined,
+  }))
+  expect(await screen.findByText('External web source')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Open web source' })).toHaveAttribute('rel', 'noopener noreferrer')
+  fireEvent.click(screen.getByRole('link', { name: 'Open web source' }))
+  expect(api.getDocument).not.toHaveBeenCalled()
 })
 
 it('does not show a citation excerpt when the source is no longer accessible', async () => {
