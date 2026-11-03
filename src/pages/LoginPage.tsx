@@ -59,7 +59,7 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white lg:flex-row">
-      <aside className="flex flex-col gap-10 bg-[#20233d] p-8 text-white lg:w-[480px] lg:shrink-0 lg:gap-16 lg:p-12">
+      <aside className="flex flex-col gap-10 bg-[#20233d] p-8 text-white lg:w-[480px] lg:shrink-0 lg:gap-16 lg:p-12 xl:w-[600px]">
         <div className="flex items-center gap-2.5">
           <span
             aria-hidden="true"
@@ -117,7 +117,7 @@ export function LoginPage() {
         </p>
       </aside>
 
-      <main className="flex-1 px-6 py-10 lg:px-[152px] lg:pt-[72px]">
+      <main className="flex-1 px-6 py-10 lg:px-8 lg:pt-[72px] xl:pr-[152px]">
         <div className="mx-auto flex max-w-[520px] flex-col gap-6">
           <div className="flex flex-col gap-2.5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">
