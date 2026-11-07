@@ -3,8 +3,8 @@ import { Layout } from '../components/Layout'
 import { AssistantPage } from '../pages/AssistantPage'
 import { AuthCallbackPage } from '../pages/AuthCallbackPage'
 import { DocumentsPage } from '../pages/DocumentsPage'
+import { AccessDeniedPage, NotFoundPage } from '../pages/ErrorPages'
 import { LoginPage } from '../pages/LoginPage'
-import { NotFoundPage } from '../pages/NotFoundPage'
 
 export function AppRoutes() {
   return (
@@ -15,6 +15,7 @@ export function AppRoutes() {
         <Route index element={<Navigate to="/assistant" replace />} />
         <Route path="assistant" element={<AssistantPage />} />
         <Route path="documents" element={<DocumentsPage />} />
+        <Route path="access-denied" element={<AccessDeniedPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

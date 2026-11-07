@@ -24,9 +24,9 @@ describe('api client', () => {
       getAuthHeader: () => 'Basic abc',
       fetchImpl,
     })
-    await api.listDocuments({ status: 'INDEXED', size: 20 })
+    await api.listDocuments({ status: 'INDEXED', search: 'guide', size: 20 })
     const [url, init] = vi.mocked(fetchImpl).mock.calls[0]
-    expect(url).toBe('http://api/api/v1/documents?status=INDEXED&size=20')
+    expect(url).toBe('http://api/api/v1/documents?status=INDEXED&search=guide&size=20')
     expect(new Headers(init?.headers).get('Authorization')).toBe('Basic abc')
   })
 

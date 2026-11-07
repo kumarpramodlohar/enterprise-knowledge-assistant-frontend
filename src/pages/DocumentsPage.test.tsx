@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthContext, type AuthContextValue } from '../auth/AuthContext'
 import { ApiRequestError, type ApiClient } from '../api/client'
+import { Layout } from '../components/Layout'
 import { DocumentsPage } from './DocumentsPage'
 
 const document = {
@@ -15,12 +17,17 @@ const document = {
   updatedAt: '',
 }
 
-function renderPage(overrides: Partial<ApiClient> = {}, manageableCollectionIds = ['collection-1']) {
+function renderPage(
+  overrides: Partial<ApiClient> = {},
+  manageableCollectionIds = ['collection-1'],
+  initialEntry = '/documents',
+  withLayout = false,
+) {
   const api = {
     listDocuments: vi.fn().mockResolvedValue({
       items: [document],
       page: 0,
-      size: 100,
+      size: 20,
       totalItems: 1,
     }),
     uploadDocument: vi.fn().mockResolvedValue({
@@ -50,7 +57,23 @@ function renderPage(overrides: Partial<ApiClient> = {}, manageableCollectionIds 
     completeOidcSignIn: vi.fn(),
     signOut: vi.fn(),
   }
-  return { ...render(<AuthContext.Provider value={value}><DocumentsPage /></AuthContext.Provider>), api }
+  const page = withLayout ? (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/documents" element={<DocumentsPage />} />
+      </Route>
+    </Routes>
+  ) : (
+    <DocumentsPage />
+  )
+  return {
+    ...render(
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <AuthContext.Provider value={value}>{page}</AuthContext.Provider>
+      </MemoryRouter>,
+    ),
+    api,
+  }
 }
 
 describe('DocumentsPage', () => {
@@ -58,11 +81,65 @@ describe('DocumentsPage', () => {
     expect(await screen.findAllByText('Queued', { selector: 'span' })).not.toHaveLength(0)
   }
 
-  it('shows lifecycle controls and status for documents in manageable collections', async () => {
+  it('disables lifecycle controls while a document is queued', async () => {
     renderPage()
     await expectQueuedStatus()
-    expect(screen.getAllByRole('button', { name: 'Re-index' })).not.toHaveLength(0)
-    expect(screen.getAllByRole('button', { name: 'Delete' })).not.toHaveLength(0)
+    expect(screen.getAllByRole('button', { name: 'Re-index' }).every((button) => (button as HTMLButtonElement).disabled)).toBe(true)
+    expect(screen.getAllByRole('button', { name: 'Delete' }).every((button) => (button as HTMLButtonElement).disabled)).toBe(true)
+  })
+
+  it('searches filenames and requests 20 results per page', async () => {
+    const indexed = { ...document, status: 'INDEXED' as const }
+    const { api } = renderPage({
+      listDocuments: vi.fn().mockResolvedValue({
+        items: [indexed],
+        page: 0,
+        size: 20,
+        totalItems: 1,
+      }),
+    })
+    await screen.findAllByText('Ready', { selector: 'span' })
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search documents by filename' }), {
+      target: { value: 'Guide' },
+    })
+    await waitFor(
+      () =>
+        expect(api.listDocuments).toHaveBeenLastCalledWith({
+          search: 'Guide',
+          page: 0,
+          size: 20,
+        }),
+      { timeout: 1500 },
+    )
+  })
+
+  it('paginates through the server result set', async () => {
+    const items = Array.from({ length: 21 }, (_, index) => ({
+      ...document,
+      id: `doc-${index}`,
+      fileName: `guide-${index}.txt`,
+      status: 'INDEXED' as const,
+    }))
+    const listDocuments = vi.fn()
+      .mockResolvedValueOnce({ items: items.slice(0, 20), page: 0, size: 20, totalItems: 21 })
+      .mockResolvedValueOnce({ items: items.slice(20), page: 1, size: 20, totalItems: 21 })
+    renderPage({ listDocuments })
+    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(await screen.findByText('Page 2 of 2')).toBeInTheDocument()
+    expect(listDocuments).toHaveBeenLastCalledWith({ page: 1, size: 20 })
+  })
+
+  it('opens the existing upload form from the Upload navigation item', async () => {
+    renderPage({}, ['collection-1'], '/documents', true)
+    await expectQueuedStatus()
+    fireEvent.click(screen.getByRole('link', { name: 'Upload' }))
+    expect(await screen.findByRole('form', { name: 'Upload document' })).toBeInTheDocument()
+  })
+
+  it('opens the upload form when arriving from the Upload navigation URL', async () => {
+    renderPage({}, ['collection-1'], '/documents?upload=1')
+    expect(await screen.findByRole('form', { name: 'Upload document' })).toBeInTheDocument()
   })
 
   it('uploads a supported file and explains that accepted work is not yet indexed', async () => {
@@ -113,10 +190,14 @@ describe('DocumentsPage', () => {
   })
 
   it('refreshes lifecycle state after a re-index request', async () => {
+    const indexed = { ...document, status: 'INDEXED' as const }
     const { api } = renderPage({
-      reindexDocument: vi.fn().mockResolvedValue({ ...document, status: 'QUEUED' }),
+      listDocuments: vi.fn()
+        .mockResolvedValueOnce({ items: [indexed], page: 0, size: 20, totalItems: 1 })
+        .mockResolvedValueOnce({ items: [{ ...indexed, status: 'QUEUED' }], page: 0, size: 20, totalItems: 1 }),
+      reindexDocument: vi.fn().mockResolvedValue({ ...indexed, status: 'QUEUED' }),
     })
-    await expectQueuedStatus()
+    await screen.findAllByText('Ready', { selector: 'span' })
     fireEvent.click(screen.getAllByRole('button', { name: 'Re-index' })[0])
     await waitFor(() => expect(api.reindexDocument).toHaveBeenCalledWith('doc-1'))
     await waitFor(() => expect(api.listDocuments).toHaveBeenCalledTimes(2))
@@ -124,13 +205,14 @@ describe('DocumentsPage', () => {
   })
 
   it('deletes a document and refreshes the document list', async () => {
+    const indexed = { ...document, status: 'INDEXED' as const }
     const { api } = renderPage({
       listDocuments: vi.fn()
-        .mockResolvedValueOnce({ items: [document], page: 0, size: 100, totalItems: 1 })
-        .mockResolvedValueOnce({ items: [], page: 0, size: 100, totalItems: 0 }),
+        .mockResolvedValueOnce({ items: [indexed], page: 0, size: 20, totalItems: 1 })
+        .mockResolvedValueOnce({ items: [], page: 0, size: 20, totalItems: 0 }),
       deleteDocument: vi.fn().mockResolvedValue(undefined),
     })
-    await expectQueuedStatus()
+    await screen.findAllByText('Ready', { selector: 'span' })
     fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
     fireEvent.click(screen.getByRole('button', { name: 'Delete document' }))
     await waitFor(() => expect(api.deleteDocument).toHaveBeenCalledWith('doc-1'))
@@ -142,7 +224,7 @@ describe('DocumentsPage', () => {
       listDocuments: vi.fn().mockResolvedValue({
         items: [{ ...document, status: 'FAILED', failureReason: 'EMBEDDING_PROVIDER_FAILED' }],
         page: 0,
-        size: 100,
+        size: 20,
         totalItems: 1,
       }),
     })

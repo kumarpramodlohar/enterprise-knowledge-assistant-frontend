@@ -6,6 +6,7 @@ export type UiErrorKind =
   | 'forbidden'
   | 'not_found'
   | 'duplicate'
+  | 'document_busy'
   | 'file_too_large'
   | 'pdf_page_limit'
   | 'extracted_content_too_large'
@@ -29,6 +30,7 @@ const MESSAGES: Record<UiErrorKind, string> = {
   forbidden: 'You are not allowed to do that.',
   not_found: 'That item was not found or you do not have access to it.',
   duplicate: 'This document already exists in the collection.',
+  document_busy: 'This document is still processing. Try again when processing completes.',
   file_too_large: 'The file is too large.',
   pdf_page_limit: 'This PDF exceeds the maximum page count allowed for upload.',
   extracted_content_too_large: 'The document contains more extractable text than EKA can process.',
@@ -46,6 +48,7 @@ const BY_CODE: Record<string, UiErrorKind> = {
   FORBIDDEN: 'forbidden',
   NOT_FOUND: 'not_found',
   DUPLICATE_DOCUMENT: 'duplicate',
+  DOCUMENT_BUSY: 'document_busy',
   FILE_TOO_LARGE: 'file_too_large',
   PDF_PAGE_LIMIT_EXCEEDED: 'pdf_page_limit',
   EXTRACTED_CONTENT_TOO_LARGE: 'extracted_content_too_large',
@@ -72,7 +75,7 @@ function kindFromStatus(status: number): UiErrorKind {
     case 404:
       return 'not_found'
     case 409:
-      return 'duplicate'
+      return 'document_busy'
     case 413:
       return 'file_too_large'
     case 415:

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { RouteErrorBoundary } from './RouteErrorBoundary'
 
 const ROLE_LABEL = {
   ADMIN: 'Administrator',
@@ -11,7 +12,7 @@ const ROLE_LABEL = {
 const baseNav =
   'rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600'
 
-function navClass({ isActive }: { isActive: boolean }): string {
+function navClass(isActive: boolean): string {
   return isActive
     ? baseNav + ' bg-indigo-50 text-indigo-700'
     : baseNav + ' text-slate-700 hover:bg-slate-100'
@@ -24,13 +25,33 @@ function PrimaryNavigation({
   onNavigate?: () => void
   ariaLabel?: string
 }) {
+  const { pathname, search } = useLocation()
+  const isDocuments = pathname === '/documents'
+  const isUploadOpen = new URLSearchParams(search).get('upload') === '1'
+
   return (
     <nav aria-label={ariaLabel} className="flex flex-col gap-1">
-      <NavLink to="/assistant" onClick={onNavigate} className={navClass}>
+      <NavLink
+        to="/assistant"
+        onClick={onNavigate}
+        className={({ isActive }) => navClass(isActive)}
+      >
         Ask
       </NavLink>
-      <NavLink to="/documents" onClick={onNavigate} className={navClass}>
+      <NavLink
+        to="/documents"
+        end
+        onClick={onNavigate}
+        className={() => navClass(isDocuments && !isUploadOpen)}
+      >
         Documents
+      </NavLink>
+      <NavLink
+        to="/documents?upload=1"
+        onClick={onNavigate}
+        className={() => navClass(isDocuments && isUploadOpen)}
+      >
+        Upload
       </NavLink>
     </nav>
   )
@@ -43,7 +64,14 @@ export function Layout() {
 
   if (state.status !== 'authenticated') return <Navigate to="/login" replace />
 
-  const pageTitle = pathname === '/documents' ? 'Documents' : 'Ask'
+  const pageTitle =
+    pathname === '/documents'
+      ? 'Documents'
+      : pathname === '/access-denied'
+        ? 'Access denied'
+        : pathname === '/assistant' || pathname === '/'
+          ? 'Ask'
+          : 'Page not found'
   const role = ROLE_LABEL[state.me.role]
 
   return (
@@ -189,7 +217,9 @@ export function Layout() {
           </span>
         </header>
         <main className="min-w-0 flex-1 bg-slate-50">
-          <Outlet />
+          <RouteErrorBoundary>
+            <Outlet />
+          </RouteErrorBoundary>
         </main>
       </div>
     </div>

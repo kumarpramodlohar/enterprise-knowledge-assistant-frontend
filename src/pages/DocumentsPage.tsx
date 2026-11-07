@@ -6,6 +6,7 @@ import {
   useState,
   type FormEvent,
 } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type {
   DocumentPage,
   DocumentResponse,
@@ -17,6 +18,7 @@ import { EmptyState, ErrorState, LoadingState } from '../components/StateViews'
 
 const inputClass =
   'h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600'
+const DOCUMENT_PAGE_SIZE = 20
 
 const statusLabels: Record<DocumentStatus, string> = {
   QUEUED: 'Queued',
@@ -144,6 +146,8 @@ function SummaryCard({
 
 export function DocumentsPage() {
   const { api, state } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const uploadOpen = searchParams.get('upload') === '1'
   const me = state.status === 'authenticated' ? state.me : null
   const collections = me?.readableCollectionIds ?? []
   const manageable = useMemo(
@@ -152,13 +156,15 @@ export function DocumentsPage() {
   )
   const [collectionId, setCollectionId] = useState('')
   const [status, setStatus] = useState<DocumentStatus | ''>('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [pageNumber, setPageNumber] = useState(0)
   const [page, setPage] = useState<DocumentPage | null>(null)
   const documents = page?.items ?? []
   const [loading, setLoading] = useState(Boolean(me))
   const [error, setError] = useState<UiError | null>(null)
   const [message, setMessage] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [uploadOpen, setUploadOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<DocumentResponse | null>(
     null,
   )
@@ -173,16 +179,25 @@ export function DocumentsPage() {
     return api.listDocuments({
       ...(collectionId ? { collectionId } : {}),
       ...(status ? { status } : {}),
-      page: 0,
-      size: 100,
+      ...(search ? { search } : {}),
+      page: pageNumber,
+      size: DOCUMENT_PAGE_SIZE,
     })
-  }, [api, collectionId, me, status])
+  }, [api, collectionId, me, pageNumber, search, status])
 
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
       const result = await requestDocuments()
       if (!result) return
+      const lastPage = Math.max(
+        0,
+        Math.ceil(result.totalItems / DOCUMENT_PAGE_SIZE) - 1,
+      )
+      if (pageNumber > lastPage) {
+        setPageNumber(lastPage)
+        return
+      }
       setPage(result)
       setError(null)
     } catch (cause) {
@@ -190,7 +205,7 @@ export function DocumentsPage() {
     } finally {
       setLoading(false)
     }
-  }, [requestDocuments])
+  }, [pageNumber, requestDocuments])
 
   useEffect(() => {
     if (!me) return
@@ -215,8 +230,28 @@ export function DocumentsPage() {
   }, [me, requestDocuments])
 
   useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setSearch(searchInput.trim())
+      setPageNumber(0)
+    }, 300)
+    return () => window.clearTimeout(timeout)
+  }, [searchInput])
+
+  useEffect(() => {
     pollAttempts.current = 0
-  }, [collectionId, status])
+  }, [collectionId, search, status, pageNumber])
+
+  function setUploadFormOpen(open: boolean) {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (open) next.set('upload', '1')
+        else next.delete('upload')
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   useEffect(() => {
     const hasPendingIngestion = documents.some(
@@ -282,7 +317,7 @@ export function DocumentsPage() {
         `Upload accepted (${statusLabels[result.status]}). Processing may take a while; refresh status to check progress.`,
       )
       form.reset()
-      setUploadOpen(false)
+      setUploadFormOpen(false)
       await refresh()
     } catch (cause) {
       setError(toUiError(cause))
@@ -349,7 +384,7 @@ export function DocumentsPage() {
         {manageable.size > 0 && (
           <button
             type="button"
-            onClick={() => setUploadOpen((open) => !open)}
+            onClick={() => setUploadFormOpen(!uploadOpen)}
             className="inline-flex h-11 w-full items-center justify-center gap-2 self-start rounded-md bg-indigo-600 px-5 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 sm:w-auto sm:self-auto"
             aria-expanded={uploadOpen}
           >
@@ -489,7 +524,34 @@ export function DocumentsPage() {
               : 'Loading document totals…'}
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 lg:flex-row">
+          <label className="relative min-w-52 flex-1">
+            <span className="sr-only">Search documents by filename</span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-4-4" />
+            </svg>
+            <input
+              type="search"
+              aria-label="Search documents by filename"
+              placeholder="Search documents"
+              maxLength={200}
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value)
+                setPageNumber(0)
+              }}
+              className={`${inputClass} w-full pl-9`}
+            />
+          </label>
           <label className="flex flex-col gap-1 text-[11px] font-semibold text-slate-600">
             <span className="text-xs font-semibold text-slate-600 sm:sr-only">
               Collection
@@ -497,7 +559,10 @@ export function DocumentsPage() {
             <select
               aria-label="Collection"
               value={collectionId}
-              onChange={(event) => setCollectionId(event.target.value)}
+              onChange={(event) => {
+                setCollectionId(event.target.value)
+                setPageNumber(0)
+              }}
               className={`${inputClass} min-w-52`}
             >
               <option value="">All accessible collections</option>
@@ -515,9 +580,10 @@ export function DocumentsPage() {
             <select
               aria-label="Status"
               value={status}
-              onChange={(event) =>
+              onChange={(event) => {
                 setStatus(event.target.value as DocumentStatus | '')
-              }
+                setPageNumber(0)
+              }}
               className={`${inputClass} min-w-40`}
             >
               <option value="">All statuses</option>
@@ -570,6 +636,10 @@ export function DocumentsPage() {
           <ErrorState error={error} onRetry={() => void refresh()} />
         </div>
       )}
+      <p className="mt-3 text-xs text-slate-500">
+        Re-index and delete are unavailable while a document is queued or
+        processing.
+      </p>
 
       {!loading && documents.length > 0 && (
         <div className="mt-4 hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:block">
@@ -656,9 +726,19 @@ export function DocumentsPage() {
                             {canManage && (
                               <button
                                 type="button"
-                                disabled={busyId === doc.id}
+                                disabled={
+                                  busyId === doc.id ||
+                                  doc.status === 'QUEUED' ||
+                                  doc.status === 'PROCESSING'
+                                }
                                 onClick={() => void manage(doc.id, 'reindex')}
-                                className="h-8 rounded-md border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:opacity-50"
+                                className="h-8 rounded-md border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                title={
+                                  doc.status === 'QUEUED' ||
+                                  doc.status === 'PROCESSING'
+                                    ? 'Unavailable while processing'
+                                    : undefined
+                                }
                               >
                                 {busyId === doc.id
                                   ? 'Working…'
@@ -670,9 +750,19 @@ export function DocumentsPage() {
                             {canManage && (
                               <button
                                 type="button"
-                                disabled={busyId === doc.id}
+                                disabled={
+                                  busyId === doc.id ||
+                                  doc.status === 'QUEUED' ||
+                                  doc.status === 'PROCESSING'
+                                }
                                 onClick={() => setPendingDelete(doc)}
-                                className="h-8 rounded-md border border-red-200 bg-white px-3 text-xs font-medium text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:opacity-50"
+                                className="h-8 rounded-md border border-red-200 bg-white px-3 text-xs font-medium text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                title={
+                                  doc.status === 'QUEUED' ||
+                                  doc.status === 'PROCESSING'
+                                    ? 'Unavailable while processing'
+                                    : undefined
+                                }
                               >
                                 Delete
                               </button>
@@ -689,8 +779,8 @@ export function DocumentsPage() {
           {!loading && documents.length > 0 && (
             <div className="flex flex-col gap-2 border-t border-slate-200 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
               <span>
-                {documents.length > 0
-                  ? `Showing ${documents.length} document${documents.length === 1 ? '' : 's'} · ${page?.totalItems ?? 0} total across permitted collections`
+                {page && documents.length > 0
+                  ? `Showing ${page.page * page.size + 1}–${page.page * page.size + documents.length} of ${page.totalItems} permitted documents`
                   : ''}
               </span>
               <span>
@@ -714,7 +804,9 @@ export function DocumentsPage() {
             <p className="mt-1 text-sm text-slate-600">
               {error
                 ? 'Refresh to try again.'
-                : 'No documents are visible in this collection and status.'}
+                : search
+                  ? `No filenames match “${search}” in this collection and status.`
+                  : 'No documents are visible in this collection and status.'}
             </p>
           </EmptyState>
         </div>
@@ -787,9 +879,13 @@ export function DocumentsPage() {
                     <>
                       <button
                         type="button"
-                        disabled={busyId === doc.id}
+                        disabled={
+                          busyId === doc.id ||
+                          doc.status === 'QUEUED' ||
+                          doc.status === 'PROCESSING'
+                        }
                         onClick={() => void manage(doc.id, 'reindex')}
-                        className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:opacity-50"
+                        className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-3 text-xs font-medium text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {busyId === doc.id
                           ? 'Working…'
@@ -799,9 +895,13 @@ export function DocumentsPage() {
                       </button>
                       <button
                         type="button"
-                        disabled={busyId === doc.id}
+                        disabled={
+                          busyId === doc.id ||
+                          doc.status === 'QUEUED' ||
+                          doc.status === 'PROCESSING'
+                        }
                         onClick={() => setPendingDelete(doc)}
-                        className="h-9 rounded-md border border-red-200 bg-white px-3 text-xs font-medium text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:opacity-50"
+                        className="h-9 rounded-md border border-red-200 bg-white px-3 text-xs font-medium text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Delete
                       </button>
@@ -812,6 +912,36 @@ export function DocumentsPage() {
             )
           })}
         </ul>
+      )}
+
+      {!loading && page && page.totalItems > 0 && (
+        <nav
+          aria-label="Document list pagination"
+          className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3"
+        >
+          <span className="text-sm text-slate-600">
+            Page {page.page + 1} of{' '}
+            {Math.max(1, Math.ceil(page.totalItems / DOCUMENT_PAGE_SIZE))}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPageNumber(Math.max(0, page.page - 1))}
+              disabled={page.page === 0}
+              className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => setPageNumber(page.page + 1)}
+              disabled={page.page + 1 >= Math.ceil(page.totalItems / page.size)}
+              className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </nav>
       )}
 
       {!loading && documents.length > 0 && (

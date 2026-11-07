@@ -41,6 +41,7 @@ export interface DocumentListQuery {
   status?: DocumentStatus
   documentType?: string
   tag?: string
+  search?: string
   page?: number
   size?: number
 }

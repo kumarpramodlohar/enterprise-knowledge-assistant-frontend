@@ -16,6 +16,7 @@ describe('toUiError', () => {
     [403, 'FORBIDDEN', 'forbidden'],
     [404, 'NOT_FOUND', 'not_found'],
     [409, 'DUPLICATE_DOCUMENT', 'duplicate'],
+    [409, 'DOCUMENT_BUSY', 'document_busy'],
     [413, 'FILE_TOO_LARGE', 'file_too_large'],
     [413, 'PDF_PAGE_LIMIT_EXCEEDED', 'pdf_page_limit'],
     [413, 'EXTRACTED_CONTENT_TOO_LARGE', 'extracted_content_too_large'],
